@@ -20,7 +20,7 @@ namespace WebApi_PostGreSQLDemo.Database
 
             builder.Entity<User>().Property(d => d.Initials).HasMaxLength(5);
 
-            builder.HasDefaultSchema("Identity");
+            builder.HasDefaultSchema("Identity_New");
         }
 
         // add DbSet<T> properties here

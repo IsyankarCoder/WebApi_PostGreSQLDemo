@@ -2,9 +2,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Primitives;
+using Microsoft.OpenApi;
 using System.Text.Json.Serialization;
 using WebApi_PostGreSQLDemo.Database;
 using WebApi_PostGreSQLDemo.Extensions;
+using Microsoft.OpenApi;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +17,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
 });
 builder.Services.AddAuthorization();
-builder.Services.AddAuthentication().AddCookie(IdentityConstants.ApplicationScheme);
+builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddCookie(IdentityConstants.ApplicationScheme).
+    AddBearerToken(IdentityConstants.BearerScheme);
+    //.AddCookie(IdentityConstants.ApplicationScheme);
 
 
 builder.Services.AddIdentityCore<User>()
@@ -28,7 +33,21 @@ builder.Services.Configure<RouteOptions>(options =>
     options.SetParameterPolicy<RegexInlineRouteConstraint>("regex"));
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(d =>
+{
+    d.AddSecurityDefinition("beaererAuth", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Jwt Authorization header using bearer scheme"
+
+    });
+
+    
+});
 
 WebApplication app = builder.Build();
 
@@ -42,7 +61,17 @@ if (app.Environment.IsDevelopment())
 
 }
 
+
 app.MapIdentityApi<User>();
+
+app.MapGet("users/me", async (ClaimsPrincipal claims, AppDbContext dbContext) =>
+{
+    string userId = claims.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value;
+
+    return await dbContext.Users.FindAsync(userId);
+}).RequireAuthorization();
+
+
 
 var sampleTodos = new Todo[] {
     new(1, "Walk the dog"),
